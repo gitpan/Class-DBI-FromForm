@@ -4,7 +4,7 @@ use strict;
 use vars qw/$VERSION @EXPORT/;
 use base 'Exporter';
 
-$VERSION = 0.01;
+$VERSION = 0.02;
 
 @EXPORT = qw/update_from_form create_from_form/;
 
@@ -68,7 +68,7 @@ sub _run_update {
     my ( $me, $them, $results ) = @_;
     foreach my $col ( $them->columns('All') ) {
         next if $col eq $them->primary_column;
-        if ( my $val = $results->valid($col) ) {
+        if ( defined( my $val = $results->valid($col) ) ) {
             $them->$col($val);
         }
     }
