@@ -4,13 +4,13 @@ use strict;
 use vars qw/$VERSION @EXPORT/;
 use base 'Exporter';
 
-$VERSION = 0.03;
+$VERSION = 0.04;
 
 @EXPORT = qw/update_from_form create_from_form/;
 
 =head1 NAME
 
-Class::DBI::FromForm - Update Class::DBI data using Data::FormValidator
+Class::DBI::FromForm - Update Class::DBI data using Data::FormValidator or HTML Widget
 
 =head1 SYNOPSIS
 
@@ -26,7 +26,7 @@ Class::DBI::FromForm - Update Class::DBI data using Data::FormValidator
 
 =head1 DESCRIPTION
 
-Create and update L<Class::DBI> objects from L<Data::FormValidator>.
+Create and update L<Class::DBI> objects from L<Data::FormValidator> or L<HTML::Widget>.
 
 =head2 METHODS
 
@@ -56,26 +56,56 @@ sub update_from_form {
 
 sub _run_create {
     my ( $me, $class, $results ) = @_;
+    
     my $them = bless {}, $class;
     my $cols = {};
     foreach my $col ( $them->columns('All') ) {
-        $cols->{$col} = $results->valid($col);
+        if($results->isa('HTML::Widget::Result')) {
+            $cols->{$col} = $results->param($col);
+        } else {
+            $cols->{$col} = $results->valid($col);
+        }
     }
     return $class->create($cols);
 }
 
 sub _run_update {
     my ( $me, $them, $results ) = @_;
-    foreach my $col ( keys %{ $results->valid } ) {
+    my @cols = ( $results->isa('HTML::Widget::Result') ?
+        $results->valid :
+        keys %{ $results->valid } );
+        
+    foreach my $col ( @cols ) {
         if ( $them->can($col) ) {
             next if $col eq $them->primary_column;
-            my $val = $results->valid($col);
-            $them->$col($val);
+            if($results->isa('HTML::Widget::Result')) {
+                $them->$col( $results->param($col));
+            } else {
+                $them->$col( $results->valid($col));
+            }
         }
     }
     $them->update;
     return 1;
 }
+
+
+=head1 fill_widget <widget>
+
+This only applies to L<HTML::Widget>>.
+Fills the form from a CDBI object.
+
+=cut
+
+sub fill_widget {
+    my ($me ,$widget)=@_;
+
+    foreach my $element ( @{ $widget->{_elements} } ) {
+        my $name=$element->name;
+        next unless $name && $me->can($name);
+        $element->value($me->$name);
+    }
+}                                                                                                                                                                          
 
 =head1 SEE ALSO
 
